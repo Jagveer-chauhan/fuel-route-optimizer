@@ -1,42 +1,107 @@
+"""Management command to import gas stations from CSV into the database."""
+
+import csv
 import os
-import pandas as pd
+from typing import Dict
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db import transaction
+
 from api.models import GasStation
+from api.stations import StationRepository
+
 
 class Command(BaseCommand):
-    help = 'Bulk seeds gas stations from CSV with pre-computed coordinates'
+    help = "Idempotently import and deduplicate gas stations from CSV dataset."
 
-    def handle(self, *args, **kwargs):
-        csv_path = os.path.join(settings.BASE_DIR, 'api', 'fuel_stations.csv')
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--csv-path",
+            type=str,
+            default=os.path.join(settings.BASE_DIR, "api", "fuel_stations.csv"),
+            help="Path to fuel stations CSV file",
+        )
+
+    def handle(self, *args, **options):
+        csv_path = options["csv_path"]
 
         if not os.path.exists(csv_path):
-            self.stdout.write(self.style.ERROR(f"File not found at: {csv_path}"))
+            self.stdout.write(self.style.ERROR(f"CSV file not found at: {csv_path}"))
             return
 
-        self.stdout.write("Reading CSV dataset...")
-        df = pd.read_csv(csv_path)
-        
-        stations_to_create = []
+        self.stdout.write(f"Reading and parsing stations from {csv_path}...")
 
-        for _, row in df.iterrows():
-            stations_to_create.append(
-                GasStation(
-                    opis_truckstop_id=row['OPIS Truckstop ID'],
-                    truckstop_name=row['Truckstop Name'],
-                    address=row['Address'],
-                    city=row['City'],
-                    state=row['State'],
-                    rack_id=row['Rack ID'],
-                    retail_price=row['Retail Price'],
-                    latitude=row['Geocodio Latitude'],
-                    longitude=row['Geocodio Longitude']
-                )
+        unique_stations: Dict[int, GasStation] = {}
+        skipped_duplicates = 0
+        skipped_invalid = 0
+        total_rows = 0
+
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                total_rows += 1
+                try:
+                    opis_id = int(row["OPIS Truckstop ID"].strip())
+                    name = row["Truckstop Name"].strip()
+                    address = row["Address"].strip()
+                    city = row["City"].strip()
+                    state = row["State"].strip()
+                    rack_id = int(row["Rack ID"].strip())
+                    price = float(row["Retail Price"].strip())
+                    lat = float(row["Geocodio Latitude"].strip())
+                    lon = float(row["Geocodio Longitude"].strip())
+
+                    if price <= 0.0 or lat == 0.0 or lon == 0.0:
+                        skipped_invalid += 1
+                        continue
+
+                    # Deduplicate: if ID already seen, keep the lower priced station
+                    if opis_id in unique_stations:
+                        skipped_duplicates += 1
+                        if price < unique_stations[opis_id].retail_price:
+                            unique_stations[opis_id] = GasStation(
+                                opis_truckstop_id=opis_id,
+                                truckstop_name=name,
+                                address=address,
+                                city=city,
+                                state=state,
+                                rack_id=rack_id,
+                                retail_price=price,
+                                latitude=lat,
+                                longitude=lon,
+                            )
+                    else:
+                        unique_stations[opis_id] = GasStation(
+                            opis_truckstop_id=opis_id,
+                            truckstop_name=name,
+                            address=address,
+                            city=city,
+                            state=state,
+                            rack_id=rack_id,
+                            retail_price=price,
+                            latitude=lat,
+                            longitude=lon,
+                        )
+                except (ValueError, KeyError):
+                    skipped_invalid += 1
+
+        self.stdout.write(
+            f"Processed {total_rows} CSV rows. Found {len(unique_stations)} unique stations."
+        )
+        if skipped_duplicates > 0:
+            self.stdout.write(f"Skipped {skipped_duplicates} duplicate OPIS Truckstop ID records.")
+        if skipped_invalid > 0:
+            self.stdout.write(f"Skipped {skipped_invalid} invalid records.")
+
+        with transaction.atomic():
+            GasStation.objects.all().delete()
+            GasStation.objects.bulk_create(list(unique_stations.values()), batch_size=1000)
+
+        # Invalidate in-memory station spatial cache
+        StationRepository.reset()
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Successfully seeded {len(unique_stations)} unique stations into database."
             )
-
-        GasStation.objects.all().delete()
-        
-        self.stdout.write("Inserting records into PostgreSQL in bulk...")
-        GasStation.objects.bulk_create(stations_to_create, batch_size=1000)
-        
-        self.stdout.write(self.style.SUCCESS(f"Successfully seeded {len(stations_to_create)} stations instantly!"))
+        )

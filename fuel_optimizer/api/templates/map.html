@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fuel Optimizer - Route Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8fafc;
+    }
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+    .stats-card {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      max-width: 340px;
+      font-size: 14px;
+    }
+    .stats-card h2 {
+      margin: 0 0 10px 0;
+      font-size: 17px;
+      color: #1e293b;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .stat-label {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .stat-val {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="map"></div>
+  <div class="stats-card">
+    <h2>Optimal Fuel Route</h2>
+    <div class="stat-row">
+      <span class="stat-label">From:</span>
+      <span class="stat-val">{{ start_name }}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">To:</span>
+      <span class="stat-val">{{ finish_name }}</span>
+    </div>
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 10px 0;" />
+    <div class="stat-row">
+      <span class="stat-label">Distance:</span>
+      <span class="stat-val">{{ total_distance }} mi</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Fuel Cost:</span>
+      <span class="stat-val" style="color: #16a34a; font-size: 16px;">${{ total_cost }}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Stops:</span>
+      <span class="stat-val"><span class="badge">{{ stops_count }} stop(s)</span></span>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script id="geo-data" type="application/json">{{ route_geojson_json|safe }}</script>
+  <script>
+    const map = L.map('map').setView([39.8283, -98.5795], 4);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 19
+    }).addTo(map);
+
+    const geoData = JSON.parse(document.getElementById('geo-data').textContent);
+
+    const polylineLayer = L.geoJSON(geoData, {
+      filter: (f) => f.geometry.type === 'LineString',
+      style: { color: '#2563eb', weight: 5, opacity: 0.85 }
+    }).addTo(map);
+
+    if (polylineLayer.getBounds().isValid()) {
+      map.fitBounds(polylineLayer.getBounds(), { padding: [50, 50] });
+    }
+
+    L.geoJSON(geoData, {
+      filter: (f) => f.geometry.type === 'Point',
+      pointToLayer: (feature, latlng) => {
+        const p = feature.properties;
+        let color = '#2563eb';
+        let label = '📍';
+
+        if (p.type === 'start_point') {
+          color = '#16a34a'; label = '🟢';
+        } else if (p.type === 'destination_point') {
+          color = '#dc2626'; label = '🏁';
+        } else if (p.type === 'fuel_stop') {
+          color = '#ea580c'; label = '⛽ #' + p.stop_number;
+        }
+
+        const icon = L.divIcon({
+          className: 'custom-pin',
+          html: `<div style="background: ${color}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap;">${label}</div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+
+        const marker = L.marker(latlng, { icon: icon });
+        if (p.type === 'fuel_stop') {
+          marker.bindPopup(`
+            <div style="font-family: sans-serif; min-width: 170px;">
+              <h4 style="margin: 0 0 6px 0; color: #ea580c;">⛽ Stop #${p.stop_number}</h4>
+              <b>${p.truckstop_name}</b><br />
+              ${p.city}, ${p.state}<br /><hr style="margin: 6px 0; border: none; border-top: 1px solid #ddd;" />
+              <b>Price:</b> $${Number(p.retail_price_per_gallon).toFixed(3)}/gal<br />
+              <b>Mile:</b> ${Number(p.distance_along_route_miles).toFixed(1)} mi<br />
+              <b>Gallons:</b> ${Number(p.gallons_purchased).toFixed(2)} gal<br />
+              <b>Cost:</b> <b>$${Number(p.cost_at_stop).toFixed(2)}</b>
+            </div>
+          `);
+        } else {
+          marker.bindPopup(`<b>${p.title}</b><br />${p.name}`);
+        }
+        return marker;
+      }
+    }).addTo(map);
+  </script>
+
+</body>
+</html>

@@ -1,9 +1,5 @@
 from django.db import models
 
-# Create your models here.
-
-from django.db import models
-
 class GasStation(models.Model):
     opis_truckstop_id = models.IntegerField(db_index=True)
     truckstop_name = models.CharField(max_length=255)
