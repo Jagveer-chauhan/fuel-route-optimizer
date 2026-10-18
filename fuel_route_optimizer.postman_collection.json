@@ -1,0 +1,280 @@
+{
+  "info": {
+    "_postman_id": "b3e9e1c2-7d8a-4ef1-995b-fuel-optimizer",
+    "name": "Spotter Fuel Route Optimizer API",
+    "description": "Collection of all API endpoints and input types for the Spotter Fuel Route Optimizer service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Optimize Route - POST (City Names)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start_location\": \"Dallas, TX\",\n  \"finish_location\": \"Chicago, IL\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ]
+        },
+        "description": "Calculate optimal fuel stops using city/state string names."
+      }
+    },
+    {
+      "name": "2. Optimize Route - POST (Coordinate Pairs)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"origin_latitude\": 32.7767,\n  \"origin_longitude\": -96.7970,\n  \"destination_latitude\": 41.8781,\n  \"destination_longitude\": -87.6298\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ]
+        },
+        "description": "Calculate optimal fuel stops directly using GPS latitude and longitude pairs."
+      }
+    },
+    {
+      "name": "3. Optimize Route - POST (Short Aliases 'start' and 'finish')",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Houston, TX\",\n  \"finish\": \"Atlanta, GA\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ]
+        },
+        "description": "Calculate optimal fuel stops using short alias field names 'start' and 'finish'."
+      }
+    },
+    {
+      "name": "4. Optimize Route - POST (Mixed: City Name + Coordinates)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start_location\": \"Los Angeles, CA\",\n  \"destination_latitude\": 36.1699,\n  \"destination_longitude\": -115.1398\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ]
+        },
+        "description": "Calculate optimal fuel stops using a mixed input format (origin city + destination coordinates)."
+      }
+    },
+    {
+      "name": "5. Optimize Route - GET (City Names Query Params)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/?start_location=Dallas, TX&finish_location=Chicago, IL",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start_location",
+              "value": "Dallas, TX"
+            },
+            {
+              "key": "finish_location",
+              "value": "Chicago, IL"
+            }
+          ]
+        },
+        "description": "Calculate optimal fuel stops via GET request using query parameters."
+      }
+    },
+    {
+      "name": "6. Optimize Route - GET (Coordinates Query Params)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/?origin_latitude=32.7767&origin_longitude=-96.7970&destination_latitude=41.8781&destination_longitude=-87.6298",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ],
+          "query": [
+            {
+              "key": "origin_latitude",
+              "value": "32.7767"
+            },
+            {
+              "key": "origin_longitude",
+              "value": "-96.7970"
+            },
+            {
+              "key": "destination_latitude",
+              "value": "41.8781"
+            },
+            {
+              "key": "destination_longitude",
+              "value": "-87.6298"
+            }
+          ]
+        },
+        "description": "Calculate optimal fuel stops via GET request with GPS coordinates in query parameters."
+      }
+    },
+    {
+      "name": "7. Map View - GET (Interactive Leaflet Map via Query)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/map/?start_location=Dallas, TX&finish_location=Chicago, IL",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "map",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start_location",
+              "value": "Dallas, TX"
+            },
+            {
+              "key": "finish_location",
+              "value": "Chicago, IL"
+            }
+          ]
+        },
+        "description": "Renders interactive visual HTML/Leaflet map with polyline and fuel stop pins."
+      }
+    },
+    {
+      "name": "8. Error Case - Non-US Location (400 Bad Request)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start_location\": \"Paris, France\",\n  \"finish_location\": \"Berlin, Germany\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ]
+        },
+        "description": "Tests validation rejection when locations are outside the contiguous United States."
+      }
+    },
+    {
+      "name": "9. Error Case - Missing Parameters (400 Bad Request)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start_location\": \"Dallas, TX\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/optimize-route/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "optimize-route",
+            ""
+          ]
+        },
+        "description": "Tests validation rejection when required finish_location is missing."
+      }
+    }
+  ]
+}
